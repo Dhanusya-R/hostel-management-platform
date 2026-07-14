@@ -1,9 +1,10 @@
 const express = require('express');
-const { allocateRoom } = require('../controllers/allocationController');
 const protect = require('../middleware/auth');
+const allocationController = require('../controllers/allocationController');
 
 const router = express.Router();
 
-router.post('/', protect, allocateRoom);
+router.post('/', protect, allocationController.allocateRoom);
+router.put('/requests/:requestId/approve', protect, allocationController.approveRequest);
 
 module.exports = router;

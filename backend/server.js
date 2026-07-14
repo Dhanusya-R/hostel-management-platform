@@ -1,4 +1,4 @@
-// hostel-management-platform/backend/server.js
+// backend/server.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -10,22 +10,23 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:5173', // Vite default port
+  origin: ['http://localhost:5173', 'http://localhost:3000'], // Vite + React default ports
   credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Database Connection & Sync
+// Database Connection
 connectDB().then(async () => {
   try {
-    await sequelize.sync({ alter: true }); // Safe for development
+    await sequelize.sync({ alter: true }); // Use { force: true } only for complete reset in development
     console.log('✅ Database Synced Successfully');
   } catch (syncError) {
-    console.error('❌ Database Sync Error:', syncError);
+    console.error('❌ Database Sync Error:', syncError.message);
   }
 }).catch(err => {
-  console.error('❌ Database Connection Failed:', err);
+  console.error('❌ Database Connection Failed:', err.message);
   process.exit(1);
 });
 
@@ -36,7 +37,7 @@ const roomRoutes = require('./routes/roomRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const allocationRoutes = require('./routes/allocationRoutes');
 const feeRoutes = require('./routes/feeRoutes');
-const requestRoutes = require('./routes/requests'); // New route for student requests
+const requestRoutes = require('./routes/requests');
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -45,24 +46,32 @@ app.use('/api/rooms', roomRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/allocations', allocationRoutes);
 app.use('/api/fees', feeRoutes);
-app.use('/api/requests', requestRoutes); // Student room booking requests
+app.use('/api/requests', requestRoutes);
 
-// Health Check Route
+// Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'CampusStay Backend is running' });
+  res.json({ 
+    status: 'OK', 
+    message: 'CampusStay Backend is running smoothly ✅',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // 404 Handler
 app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+  res.status(404).json({ 
+    success: false, 
+    message: 'Route not found' 
+  });
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Server Error:', err.stack);
   res.status(500).json({ 
-    message: 'Something went wrong!', 
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    success: false,
+    message: 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 

@@ -16,3 +16,11 @@ Student.hasMany(Fee, { foreignKey: 'studentId' });
 Fee.belongsTo(Student, { foreignKey: 'studentId' });
 
 module.exports = { sequelize, User, Building, Room, Student, Fee };
+
+// Add this
+const RoomRequest = require('./RoomRequest');
+
+// Associations
+// ... existing ones
+RoomRequest.belongsTo(require('./Student'), { foreignKey: 'studentId' });
+require('./Student').hasMany(RoomRequest, { foreignKey: 'studentId' });

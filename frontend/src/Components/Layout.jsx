@@ -1,7 +1,7 @@
 // src/components/Layout.jsx
 import { 
   LayoutDashboard, Building2, Layers, Users, 
-  UserPlus, CreditCard, BarChart3, Menu, Bell
+  UserPlus, CreditCard, BarChart3, Menu, Bell, ClipboardList
 } from 'lucide-react';
 
 export function Sidebar({ currentView, setView }) {
@@ -11,6 +11,7 @@ export function Sidebar({ currentView, setView }) {
     { id: 'rooms', label: 'Floor & Room', icon: Layers },
     { id: 'students', label: 'Student Management', icon: Users },
     { id: 'allocation', label: 'Room Allocation', icon: UserPlus },
+    { id: 'requests', label: 'Room Requests', icon: ClipboardList },
     { id: 'fees', label: 'Fee Management', icon: CreditCard },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
   ];

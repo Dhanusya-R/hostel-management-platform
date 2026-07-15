@@ -1,7 +1,7 @@
 // src/components/Modules.jsx
 import jsPDF from 'jspdf';
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, IndianRupee, Download, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, FileText } from 'lucide-react';
 import api from '../api';
 
 export function BuildingManagement() {
@@ -37,15 +37,12 @@ export function BuildingManagement() {
       } else {
         await api.post('/buildings', formData);
       }
-
-      // Refresh list
       const res = await api.get('/buildings');
       setBuildings(res.data);
-
       resetForm();
     } catch (error) {
-      console.error(error);
-      alert('Failed to save building');
+      const msg = error.response?.data?.message || error.message || 'Failed to save building';
+      alert(msg);
     }
   };
 
@@ -66,8 +63,8 @@ export function BuildingManagement() {
       await api.delete(`/buildings/${id}`);
       setBuildings(buildings.filter(b => b.id !== id));
     } catch (error) {
-      console.error(error);
-      alert('Failed to delete building');
+      const msg = error.response?.data?.message || error.message || 'Failed to delete building';
+      alert(msg);
     }
   };
 
@@ -197,8 +194,8 @@ export function FloorRoomManagement() {
       setRooms(res.data);
       resetForm();
     } catch (error) {
-      console.error(error);
-      alert('Failed to save room');
+      const msg = error.response?.data?.message || error.message || 'Failed to save room';
+      alert(msg);
     }
   };
 
@@ -219,8 +216,8 @@ export function FloorRoomManagement() {
       await api.delete(`/rooms/${id}`);
       setRooms(rooms.filter(r => r.id !== id));
     } catch (error) {
-      console.error(error);
-      alert('Failed to delete room');
+      const msg = error.response?.data?.message || error.message || 'Failed to delete room';
+      alert(msg);
     }
   };
 
@@ -308,6 +305,8 @@ export function StudentManagement() {
   const [formData, setFormData] = useState({
     studentId: '',
     name: '',
+    email: '',
+    password: '',
     department: ''
   });
   const [loading, setLoading] = useState(true);
@@ -332,13 +331,12 @@ export function StudentManagement() {
       } else {
         await api.post('/students', formData);
       }
-
       const res = await api.get('/students');
       setStudents(res.data);
       resetForm();
     } catch (error) {
-      console.error(error);
-      alert('Failed to save student');
+      const msg = error.response?.data?.message || error.message || 'Failed to save student';
+      alert(msg);
     }
   };
 
@@ -347,6 +345,8 @@ export function StudentManagement() {
     setFormData({
       studentId: student.studentId,
       name: student.name,
+      email: student.email || '',
+      password: '',
       department: student.department || ''
     });
     setShowForm(true);
@@ -358,13 +358,13 @@ export function StudentManagement() {
       await api.delete(`/students/${id}`);
       setStudents(students.filter(s => s.id !== id));
     } catch (error) {
-      console.error(error);
-      alert('Failed to delete student');
+      const msg = error.response?.data?.message || error.message || 'Failed to delete student';
+      alert(msg);
     }
   };
 
   const resetForm = () => {
-    setFormData({ studentId: '', name: '', department: '' });
+    setFormData({ studentId: '', name: '', email: '', password: '', department: '' });
     setEditingStudent(null);
     setShowForm(false);
   };
@@ -391,7 +391,7 @@ export function StudentManagement() {
         <div className="p-4 border-bottom bg-light">
           <form onSubmit={handleSubmit}>
             <div className="row g-3">
-              <div className="col-md-4">
+              <div className="col-md-3">
                 <label>Student ID</label>
                 <input 
                   type="text" 
@@ -402,7 +402,7 @@ export function StudentManagement() {
                   required 
                 />
               </div>
-              <div className="col-md-4">
+              <div className="col-md-3">
                 <label>Full Name</label>
                 <input 
                   type="text" 
@@ -413,7 +413,29 @@ export function StudentManagement() {
                   required 
                 />
               </div>
-              <div className="col-md-4">
+              <div className="col-md-3">
+                <label>Email (for login)</label>
+                <input 
+                  type="email" 
+                  name="email" 
+                  className="form-control" 
+                  value={formData.email} 
+                  onChange={handleChange} 
+                  placeholder="student@example.com"
+                />
+              </div>
+              <div className="col-md-3">
+                <label>Password (default: student123)</label>
+                <input 
+                  type="text" 
+                  name="password" 
+                  className="form-control" 
+                  value={formData.password} 
+                  onChange={handleChange} 
+                  placeholder="student123"
+                />
+              </div>
+              <div className="col-md-3">
                 <label>Department</label>
                 <input 
                   type="text" 
@@ -443,6 +465,7 @@ export function StudentManagement() {
             <tr>
               <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Department</th>
               <th className="px-4 py-3">Room</th>
               <th className="px-4 py-3 text-end">Actions</th>
@@ -453,6 +476,7 @@ export function StudentManagement() {
               <tr key={student.id}>
                 <td className="px-4 py-3 fw-semibold text-secondary">{student.studentId}</td>
                 <td className="px-4 py-3 fw-bold text-dark">{student.name}</td>
+                <td className="px-4 py-3 text-muted">{student.email || student.User?.email || '—'}</td>
                 <td className="px-4 py-3 text-muted">{student.department}</td>
                 <td className="px-4 py-3">
                   {student.Room ? student.Room.roomNumber : 'Not Allocated'}
@@ -503,15 +527,12 @@ export function RoomAllocation() {
       alert('Please select both student and room');
       return;
     }
-
     try {
       await api.post('/allocations', {
         studentId: selectedStudent,
         roomId: selectedRoom
       });
-
       alert('Room allocated successfully!');
-      // Refresh lists
       const [studentsRes, roomsRes] = await Promise.all([
         api.get('/students'),
         api.get('/rooms')
@@ -521,8 +542,8 @@ export function RoomAllocation() {
       setSelectedStudent('');
       setSelectedRoom('');
     } catch (error) {
-      console.error(error);
-      alert('Allocation failed');
+      const msg = error.response?.data?.message || error.message || 'Allocation failed';
+      alert(msg);
     }
   };
 
@@ -594,29 +615,38 @@ export function FeeManagement() {
 
   const token = localStorage.getItem('token');
 
-  const fetchFees = async () => {
+  const loadFees = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/fees/all', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       setFees(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to fetch fees:', error);
-    }
+    } catch (e) { void e; }
   };
 
   useEffect(() => {
-    fetchFees();
-  }, []); // Empty array - runs only once
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/fees/all', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!cancelled) setFees(Array.isArray(data) ? data : []);
+      } catch (e) { void e; }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const url = editingFee 
+      const url = editingFee
         ? `http://localhost:5000/api/fees/${editingFee.id}`
         : 'http://localhost:5000/api/fees';
-      
+
       const method = editingFee ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -629,18 +659,19 @@ export function FeeManagement() {
       });
 
       if (res.ok) {
-        setMessage({ 
-          type: 'success', 
-          text: editingFee ? 'Fee updated successfully!' : 'Fee added successfully!' 
+        setMessage({
+          type: 'success',
+          text: editingFee ? 'Fee updated successfully!' : 'Fee added successfully!'
         });
         setShowForm(false);
         setEditingFee(null);
         setFormData({ studentId: '', amount: '', semester: '', status: 'pending' });
-        fetchFees();
+        loadFees();
       } else {
-        setMessage({ type: 'danger', text: 'Failed to save fee' });
+        const data = await res.json();
+        setMessage({ type: 'danger', text: data.message || 'Failed to save fee' });
       }
-    } catch (error) {
+    } catch (e) { void e;
       setMessage({ type: 'danger', text: 'Server error occurred' });
     }
   };
@@ -669,11 +700,11 @@ export function FeeManagement() {
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'Status updated successfully!' });
-        fetchFees();
+        loadFees();
       } else {
         setMessage({ type: 'danger', text: 'Failed to update status' });
       }
-    } catch (error) {
+    } catch (e) { void e;
       setMessage({ type: 'danger', text: 'Server error' });
     }
   };
@@ -970,6 +1001,149 @@ export function Reports() {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function AdminRoomRequests() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+
+  const loadRequests = async () => {
+    try {
+      const res = await api.get('/allocations/requests');
+      setRequests(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { void err; } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.get('/allocations/requests');
+        if (!cancelled) setRequests(Array.isArray(res.data) ? res.data : []);
+      } catch (err) { void err; } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleApprove = async (requestId) => {
+    if (!window.confirm('Approve this room request? The room will be allocated to the student.')) return;
+    try {
+      await api.put(`/allocations/requests/${requestId}/approve`);
+      alert('Request approved and room allocated!');
+      loadRequests();
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to approve';
+      alert(msg);
+    }
+  };
+
+  const handleReject = async (requestId) => {
+    if (!window.confirm('Reject this room request?')) return;
+    try {
+      await api.put(`/allocations/requests/${requestId}/reject`);
+      alert('Request rejected');
+      loadRequests();
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Failed to reject';
+      alert(msg);
+    }
+  };
+
+  const filtered = requests.filter(r => {
+    if (filter === 'all') return true;
+    return r.status === filter;
+  });
+
+  if (loading) return <div className="p-4 text-center">Loading requests...</div>;
+
+  return (
+    <div className="card shadow-sm border-light-subtle">
+      <div className="card-header bg-white p-3 d-flex justify-content-between align-items-center border-bottom">
+        <div>
+          <h5 className="mb-0 fw-bold text-dark">Room Requests from Students</h5>
+          <small className="text-muted">Review and approve/reject room allocation requests</small>
+        </div>
+        <div className="d-flex gap-2">
+          {['all', 'pending', 'approved', 'rejected'].map(f => (
+            <button
+              key={f}
+              className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-outline-secondary'}`}
+              onClick={() => setFilter(f)}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === 'pending' && ` (${requests.filter(r => r.status === 'pending').length})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="table-responsive">
+        <table className="table table-hover align-middle mb-0">
+          <thead className="table-light small text-uppercase text-muted">
+            <tr>
+              <th className="px-4 py-3">Student</th>
+              <th className="px-4 py-3">Student ID</th>
+              <th className="px-4 py-3">Building</th>
+              <th className="px-4 py-3">Room</th>
+              <th className="px-4 py-3">Message</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Date</th>
+              <th className="px-4 py-3 text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length > 0 ? filtered.map(req => (
+              <tr key={req.id}>
+                <td className="px-4 py-3 fw-bold text-dark">{req.Student?.name || '—'}</td>
+                <td className="px-4 py-3 fw-semibold text-secondary">{req.Student?.studentId || '—'}</td>
+                <td className="px-4 py-3">{req.Building?.name || '—'}</td>
+                <td className="px-4 py-3">{req.Room?.roomNumber || '—'}</td>
+                <td className="px-4 py-3 text-muted" style={{ maxWidth: '200px' }}>{req.message || '—'}</td>
+                <td className="px-4 py-3">
+                  <span className={`badge px-3 py-2 ${
+                    req.status === 'approved' ? 'bg-success-subtle text-success'
+                      : req.status === 'rejected' ? 'bg-danger-subtle text-danger'
+                        : 'bg-warning-subtle text-warning'
+                  }`}>
+                    {req.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-muted">{new Date(req.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3 text-end">
+                  {req.status === 'pending' && (
+                    <>
+                      <button
+                        className="btn btn-sm btn-outline-success me-2"
+                        onClick={() => handleApprove(req.id)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => handleReject(req.id)}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan="8" className="text-center py-5 text-muted">No requests found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

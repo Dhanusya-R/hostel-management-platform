@@ -6,9 +6,12 @@ const Building = require('./Building');
 const Room = require('./Room');
 const Student = require('./Student');
 const Fee = require('./Fee');
-const RoomRequest = require('./RoomRequest');   // ← Must exist
+const RoomRequest = require('./RoomRequest');
 
 // ====================== ASSOCIATIONS ======================
+User.hasOne(Student, { foreignKey: 'userId' });
+Student.belongsTo(User, { foreignKey: 'userId' });
+
 Building.hasMany(Room, { foreignKey: 'buildingId' });
 Room.belongsTo(Building, { foreignKey: 'buildingId' });
 
@@ -24,6 +27,9 @@ RoomRequest.belongsTo(Student, { foreignKey: 'studentId' });
 
 Room.hasMany(RoomRequest, { foreignKey: 'roomId' });
 RoomRequest.belongsTo(Room, { foreignKey: 'roomId' });
+
+Building.hasMany(RoomRequest, { foreignKey: 'buildingId' });
+RoomRequest.belongsTo(Building, { foreignKey: 'buildingId' });
 
 module.exports = { 
   sequelize, 

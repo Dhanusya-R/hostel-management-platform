@@ -47,7 +47,6 @@ app.use('/api/students', studentRoutes);
 app.use('/api/allocations', allocationRoutes);
 app.use('/api/fees', feeRoutes);
 app.use('/api/requests', requestRoutes);
-app.use('/api/fees', require('./routes/feeRoutes'));
 
 // Health Check
 app.get('/api/health', (req, res) => {

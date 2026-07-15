@@ -4,7 +4,7 @@ import { Signup } from './Components/Auth/Signup';
 import { Dashboard } from './Components/Dashboard';
 import { DashboardLayout } from './Components/Layout';
 import { StudentPortal } from './Components/StudentPortal';
-import { BuildingManagement, FloorRoomManagement, StudentManagement, RoomAllocation, FeeManagement, Reports } from './Components/Modules';
+import { BuildingManagement, FloorRoomManagement, StudentManagement, RoomAllocation, FeeManagement, Reports, AdminRoomRequests } from './Components/Modules';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -74,6 +74,7 @@ function App() {
       rooms: <FloorRoomManagement />,
       students: <StudentManagement />,
       allocation: <RoomAllocation />,
+      requests: <AdminRoomRequests />,
       fees: <FeeManagement />,
       reports: <Reports />,
     };

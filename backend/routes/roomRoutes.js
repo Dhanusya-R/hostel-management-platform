@@ -5,6 +5,7 @@ const roomController = require('../controllers/roomController');
 const router = express.Router();
 
 router.get('/', roomController.getRooms);
+router.get('/building/:buildingId', protect, roomController.getRoomsByBuilding);
 router.post('/', protect, roomController.createRoom);
 router.put('/:id', protect, roomController.updateRoom);
 router.delete('/:id', protect, roomController.deleteRoom);

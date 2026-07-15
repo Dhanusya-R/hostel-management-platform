@@ -33,6 +33,11 @@ const User = sequelize.define(
       type: DataTypes.ENUM("admin", "student"),
       defaultValue: "student",
     },
+
+    department: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     tableName: "users",

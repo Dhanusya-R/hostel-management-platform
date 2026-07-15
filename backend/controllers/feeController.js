@@ -1,10 +1,11 @@
-// backend/controllers/feeController.js
 const { Fee, Student } = require('../models');
 
 exports.getMyFees = async (req, res) => {
   try {
+    const student = await Student.findOne({ where: { userId: req.user.id } });
+    if (!student) return res.json([]);
     const fees = await Fee.findAll({
-      where: { studentId: req.user.id },
+      where: { studentId: student.id },
       include: [{ model: Student }]
     });
     res.json(fees);
@@ -27,42 +28,27 @@ exports.getAllFees = async (req, res) => {
 exports.createFee = async (req, res) => {
   try {
     const { studentId, amount, semester, status } = req.body;
-
     if (!studentId || !amount || !semester) {
       return res.status(400).json({ message: 'Student ID, Amount and Semester are required' });
     }
-
     const fee = await Fee.create({
-      studentId,
+      studentId: parseInt(studentId, 10),
       amount: parseFloat(amount),
-      semester,
+      semester: semester.trim(),
       status: status || 'pending'
     });
-
-    const newFee = await Fee.findByPk(fee.id, {
-      include: [{ model: Student }]
-    });
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Fee created successfully', 
-      fee: newFee 
-    });
+    const newFee = await Fee.findByPk(fee.id, { include: [{ model: Student }] });
+    res.status(201).json({ success: true, message: 'Fee created', fee: newFee });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to save fee: ' + err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 
 exports.updateFeeStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    const fee = await Fee.findByPk(id);
+    const fee = await Fee.findByPk(req.params.id);
     if (!fee) return res.status(404).json({ message: 'Fee not found' });
-
-    await fee.update({ status });
+    await fee.update({ status: req.body.status });
     res.json({ success: true, message: 'Status updated', fee });
   } catch (err) {
     res.status(500).json({ message: err.message });

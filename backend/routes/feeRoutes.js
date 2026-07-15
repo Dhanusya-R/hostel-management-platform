@@ -1,11 +1,13 @@
+// backend/routes/feeRoutes.js
 const express = require('express');
-const { getFees, createFee, updateFeeStatus } = require('../controllers/feeController');
 const protect = require('../middleware/auth');
+const feeController = require('../controllers/feeController');
 
 const router = express.Router();
 
-router.get('/', protect, getFees);
-router.post('/', protect, createFee);
-router.put('/:id/status', protect, updateFeeStatus);
+router.get('/', protect, feeController.getMyFees);           // Student
+router.get('/all', protect, feeController.getAllFees);       // Admin
+router.post('/', protect, feeController.createFee);          // Create Fee
+router.put('/:id', protect, feeController.updateFeeStatus);  // Update Status
 
 module.exports = router;

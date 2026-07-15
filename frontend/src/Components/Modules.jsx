@@ -581,74 +581,242 @@ export function RoomAllocation() {
 
 export function FeeManagement() {
   const [fees, setFees] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingFee, setEditingFee] = useState(null);
+  const [formData, setFormData] = useState({
+    studentId: '',
+    amount: '',
+    semester: '',
+    status: 'pending'
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [message, setMessage] = useState({ type: '', text: '' });
 
-  useEffect(() => {
-    api.get('/fees')
-      .then(res => setFees(res.data))
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
-  }, []);
+  const token = localStorage.getItem('token');
 
-  const updateFeeStatus = async (id, status) => {
+  const fetchFees = async () => {
     try {
-      await api.put(`/fees/${id}/status`, { status });
-      const res = await api.get('/fees');
-      setFees(res.data);
+      const res = await fetch('http://localhost:5000/api/fees/all', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setFees(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error(error);
-      alert('Failed to update fee status');
+      console.error('Failed to fetch fees:', error);
     }
   };
 
-  if (loading) return <p>Loading fees...</p>;
+  useEffect(() => {
+    fetchFees();
+  }, []); // Empty array - runs only once
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const url = editingFee 
+        ? `http://localhost:5000/api/fees/${editingFee.id}`
+        : 'http://localhost:5000/api/fees';
+      
+      const method = editingFee ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (res.ok) {
+        setMessage({ 
+          type: 'success', 
+          text: editingFee ? 'Fee updated successfully!' : 'Fee added successfully!' 
+        });
+        setShowForm(false);
+        setEditingFee(null);
+        setFormData({ studentId: '', amount: '', semester: '', status: 'pending' });
+        fetchFees();
+      } else {
+        setMessage({ type: 'danger', text: 'Failed to save fee' });
+      }
+    } catch (error) {
+      setMessage({ type: 'danger', text: 'Server error occurred' });
+    }
+  };
+
+  const handleEdit = (fee) => {
+    setEditingFee(fee);
+    setFormData({
+      studentId: fee.studentId,
+      amount: fee.amount,
+      semester: fee.semester,
+      status: fee.status
+    });
+    setShowForm(true);
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/fees/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Status updated successfully!' });
+        fetchFees();
+      } else {
+        setMessage({ type: 'danger', text: 'Failed to update status' });
+      }
+    } catch (error) {
+      setMessage({ type: 'danger', text: 'Server error' });
+    }
+  };
+
+  const filteredFees = fees.filter(fee =>
+    (fee.Student?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (fee.semester || '').toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="card shadow-sm border-light-subtle">
-      <div className="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
+      <div className="card-header bg-white p-3 d-flex justify-content-between align-items-center">
         <div>
-          <h5 className="mb-0 fw-bold text-dark">Fee Collection Registry</h5>
-          <small className="text-muted">Track semester billings</small>
+          <h5 className="mb-0 fw-bold">Fee Collection Registry</h5>
+          <small className="text-muted">Track semester billings and payments</small>
         </div>
-        <button className="btn btn-success btn-sm d-flex align-items-center gap-1">
-          <IndianRupee size={16} /> Collect Offline Fee
-        </button>
+        <div className="d-flex gap-2">
+          <input
+            type="text"
+            className="form-control"
+            style={{ width: '280px' }}
+            placeholder="Search student or semester..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <button 
+            className="btn btn-primary d-flex align-items-center gap-1" 
+            onClick={() => setShowForm(true)}
+          >
+            <Plus size={18} /> Collect Offline Fee
+          </button>
+        </div>
       </div>
+
+      {message.text && (
+        <div className={`alert alert-${message.type} mx-3 mt-3`}>{message.text}</div>
+      )}
+
+      {showForm && (
+        <div className="card-body border-bottom bg-light p-4">
+          <h6 className="mb-3">{editingFee ? 'Edit Fee Record' : 'New Fee Entry'}</h6>
+          <form onSubmit={handleSubmit} className="row g-3">
+            <div className="col-md-3">
+              <label className="form-label">Student ID</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={formData.studentId} 
+                onChange={(e) => setFormData({...formData, studentId: e.target.value})} 
+                required 
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Amount (₹)</label>
+              <input 
+                type="number" 
+                className="form-control" 
+                value={formData.amount} 
+                onChange={(e) => setFormData({...formData, amount: e.target.value})} 
+                required 
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Semester</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                value={formData.semester} 
+                onChange={(e) => setFormData({...formData, semester: e.target.value})} 
+                required 
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Status</label>
+              <select 
+                className="form-select" 
+                value={formData.status} 
+                onChange={(e) => setFormData({...formData, status: e.target.value})}
+              >
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+              </select>
+            </div>
+            <div className="col-12 mt-2">
+              <button type="submit" className="btn btn-success me-2">
+                {editingFee ? 'Update Fee' : 'Add Fee'}
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingFee(null);
+                  setFormData({ studentId: '', amount: '', semester: '', status: 'pending' });
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="table-responsive">
         <table className="table table-hover align-middle mb-0">
-          <thead className="table-light small text-uppercase text-muted">
+          <thead className="table-light">
             <tr>
-              <th className="px-4 py-3">Student</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Semester</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-end">Actions</th>
+              <th>Student</th>
+              <th>Amount</th>
+              <th>Semester</th>
+              <th>Status</th>
+              <th className="text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {fees.map(fee => (
+            {filteredFees.length > 0 ? filteredFees.map(fee => (
               <tr key={fee.id}>
-                <td className="px-4 py-3 fw-bold">{fee.Student?.name}</td>
-                <td className="px-4 py-3">₹{fee.amount}</td>
-                <td className="px-4 py-3">{fee.semester}</td>
-                <td className="px-4 py-3">
-                  <span className={`badge ${fee.status === 'paid' ? 'bg-success' : 'bg-warning'}`}>
-                    {fee.status.toUpperCase()}
-                  </span>
+                <td className="fw-medium">{fee.Student?.name || fee.studentId}</td>
+                <td className="fw-bold">₹{fee.amount}</td>
+                <td>{fee.semester}</td>
+                <td>
+                  <select 
+                    className={`form-select form-select-sm w-32 ${fee.status === 'paid' ? 'text-success' : 'text-warning'}`}
+                    value={fee.status}
+                    onChange={(e) => handleStatusChange(fee.id, e.target.value)}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                  </select>
                 </td>
-                <td className="px-4 py-3 text-end">
-                  {fee.status === 'pending' && (
-                    <button 
-                      className="btn btn-success btn-sm"
-                      onClick={() => updateFeeStatus(fee.id, 'paid')}
-                    >
-                      Mark as Paid
-                    </button>
-                  )}
+                <td className="text-end">
+                  <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleEdit(fee)}>
+                    <Edit size={16} />
+                  </button>
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan="5" className="text-center py-5 text-muted">
+                  No fee records found. Add a new fee above.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

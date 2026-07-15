@@ -1,173 +1,329 @@
-// src/components/StudentPortal.jsx
+// frontend/src/Components/StudentPortal.jsx
 import { useState, useEffect } from 'react';
-import { LogOut, Home, CreditCard, Building2, RefreshCw } from 'lucide-react';
-import api from '../api';
+import { Home, CreditCard, Building2, Clock, Send, LogOut, Eye } from 'lucide-react';
 
 export function StudentPortal({ user, onLogout }) {
-  const [myRoom, setMyRoom] = useState(null);
-  const [fees, setFees] = useState([]);
   const [buildings, setBuildings] = useState([]);
-  const [availableRooms, setAvailableRooms] = useState([]);
-  const [selectedBuilding, setSelectedBuilding] = useState('');
-  const [selectedRoom, setSelectedRoom] = useState('');
-  const [showChangeForm, setShowChangeForm] = useState(false);
+  const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requests, setRequests] = useState([]);
+  const [fees, setFees] = useState([]);
+  const [showFeeModal, setShowFeeModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
+  const token = localStorage.getItem('token');
+
+  // Fetch Buildings
   useEffect(() => {
-    if (user?.id) {
-      api.get(`/students/${user.id}`)
-        .then(res => setMyRoom(res.data.Room))
-        .catch(err => console.error(err));
+    fetch('http://localhost:5000/api/buildings')
+      .then(res => res.json())
+      .then(data => setBuildings(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
 
-      api.get('/fees')
-        .then(res => setFees(res.data.filter(f => f.studentId === user.id)))
-        .catch(err => console.error(err));
-
-      api.get('/buildings')
-        .then(res => setBuildings(res.data))
-        .catch(err => console.error(err));
-    }
-  }, [user]);
-
+  // Fetch My Requests
   useEffect(() => {
-    if (selectedBuilding) {
-      api.get(`/buildings/${selectedBuilding}`)
-        .then(res => {
-          const available = res.data.Rooms ? res.data.Rooms.filter(r => r.status === 'available') : [];
-          setAvailableRooms(available);
-        })
-        .catch(err => console.error(err));
-    }
-  }, [selectedBuilding]);
+    if (!token) return;
+    fetch('http://localhost:5000/api/requests/my', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setRequests(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [token]);
 
-  const requestRoomChange = async () => {
-    if (!selectedBuilding || !selectedRoom) {
-      alert("Please select building and room");
-      return;
-    }
+  const fetchFees = async () => {
+    if (!token) return;
     try {
-      await api.post('/allocations', {
-        studentId: user.id,
-        roomId: selectedRoom
+      setLoading(true);
+      const res = await fetch('http://localhost:5000/api/fees', {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      alert("Room change request sent to warden!");
-      setSelectedBuilding('');
-      setSelectedRoom('');
-      setShowChangeForm(false);
-    } catch (error) {
-      console.error(error);
-      alert("Request failed");
+      const data = await res.json();
+      setFees(Array.isArray(data) ? data : []);
+      setShowFeeModal(true);
+    } catch {
+      setMessage({ type: 'danger', text: 'Failed to load fee records' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestSubmit = async () => {
+    if (!selectedRoom || !selectedBuilding) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          roomId: selectedRoom.id,
+          buildingId: selectedBuilding.id,
+          message: requestMessage || `Request for Room ${selectedRoom.roomNumber}`
+        })
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: '✅ Request sent successfully!' });
+        setRequestMessage('');
+        setSelectedRoom(null);
+        setSelectedBuilding(null);
+
+        const reqRes = await fetch('http://localhost:5000/api/requests/my', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const newRequests = await reqRes.json();
+        setRequests(Array.isArray(newRequests) ? newRequests : []);
+      } else {
+        setMessage({ type: 'danger', text: 'Failed to send request' });
+      }
+    } catch {
+      setMessage({ type: 'danger', text: 'Server error. Please try again.' });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-vh-100 bg-light">
       <nav className="navbar navbar-expand bg-white border-bottom px-4 py-3 shadow-sm">
-        <div className="container-fluid d-flex justify-content-between align-items-center">
-          <h5 className="fw-bold text-primary mb-0">CampusStay <span className="badge bg-secondary-subtle text-secondary">Student Portal</span></h5>
-          <button onClick={onLogout} className="btn btn-outline-danger btn-sm">
-            <LogOut size={16} className="me-1" /> Logout
+        <div className="container-fluid">
+          <div className="d-flex align-items-center gap-3">
+            <h4 className="fw-bold text-primary mb-0">CampusStay</h4>
+            <span className="badge bg-primary-subtle text-primary">Student Portal</span>
+          </div>
+          <button className="btn btn-outline-danger btn-sm" onClick={onLogout}>
+            <LogOut size={16} className="me-2" /> Logout
           </button>
         </div>
       </nav>
 
-      <main className="container py-5">
+      <div className="container py-5">
         <div className="row g-4">
-          <div className="col-md-4">
-            <div className="card shadow-sm p-4 text-center">
-              <div className="rounded-circle bg-primary-subtle text-primary mx-auto d-flex align-items-center justify-content-center fw-bold mb-3" style={{ width: '80px', height: '80px', fontSize: '1.8rem' }}>
-                {user?.name?.slice(0, 2).toUpperCase() || 'ST'}
+          {/* Profile Card */}
+          <div className="col-lg-4">
+            <div className="card shadow-sm border-0 h-100">
+              <div className="card-body text-center p-5">
+                <div 
+                  className="rounded-circle bg-primary-subtle text-primary mx-auto d-flex align-items-center justify-content-center mb-4"
+                  style={{ width: '110px', height: '110px', fontSize: '2.5rem' }}
+                >
+                  {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'KA'}
+                </div>
+                <h4 className="fw-bold">{user?.name || "Kanishka T"}</h4>
+                <p className="text-muted mb-3">{user?.email || "kanishka@gmail.com"}</p>
+                <span className="badge bg-success-subtle text-success px-4 py-2 fs-6">Active Resident</span>
               </div>
-              <h5 className="fw-bold">{user?.name}</h5>
-              <p className="text-muted small">{user?.email}</p>
-              <span className="badge bg-success-subtle text-success px-3 py-2">Active Resident</span>
             </div>
           </div>
 
-          <div className="col-md-8">
-            <div className="card shadow-sm p-4 mb-4">
-              <div className="d-flex align-items-center gap-2 mb-3">
-                <Home className="text-primary" size={24} />
-                <h6 className="fw-bold mb-0">My Current Room</h6>
+          {/* Main Content */}
+          <div className="col-lg-8">
+            {/* Status Cards */}
+            <div className="row g-4 mb-4">
+              <div className="col-md-6">
+                <div className="card shadow-sm h-100">
+                  <div className="card-body p-4">
+                    <div className="d-flex align-items-center gap-3 mb-3">
+                      <Home size={28} className="text-primary" />
+                      <h5 className="mb-0 fw-bold">My Current Room</h5>
+                    </div>
+                    <h4 className="fw-bold text-muted">No room allocated yet.</h4>
+                    <button className="btn btn-primary mt-3" onClick={() => setSelectedBuilding(buildings[0] || null)}>
+                      Request a Room →
+                    </button>
+                  </div>
+                </div>
               </div>
-              {myRoom ? (
-                <div>
-                  <h5>Room {myRoom.roomNumber}</h5>
-                  <p>Type: {myRoom.type}</p>
-                  <button className="btn btn-outline-primary btn-sm" onClick={() => setShowChangeForm(true)}>
-                    <RefreshCw size={16} className="me-1" /> Request Room Change
+
+              <div className="col-md-6">
+                <div className="card shadow-sm h-100">
+                  <div className="card-body p-4">
+                    <div className="d-flex align-items-center gap-3 mb-3">
+                      <CreditCard size={28} className="text-success" />
+                      <h5 className="mb-0 fw-bold">Fee Status</h5>
+                    </div>
+                    <h4 className="fw-bold text-success">No fee records found.</h4>
+                    <button 
+                      className="btn btn-outline-success mt-3 d-flex align-items-center gap-2" 
+                      onClick={fetchFees}
+                    >
+                      <Eye size={18} /> View Fee Structure
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Buildings */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-white py-3">
+                <h5 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                  <Building2 size={24} /> Hostel Buildings
+                </h5>
+              </div>
+              <div className="card-body">
+                <div className="row g-4">
+                  {buildings.length > 0 ? buildings.map(b => (
+                    <div className="col-md-6 col-lg-4" key={b.id}>
+                      <div 
+                        className="card h-100 shadow-sm" 
+                        style={{ cursor: 'pointer' }} 
+                        onClick={() => setSelectedBuilding(b)}
+                      >
+                        <div className="card-body">
+                          <h6 className="fw-bold">{b.name}</h6>
+                          <small className="text-muted">Block {b.blockId} • {b.floors} Floors</small>
+                        </div>
+                      </div>
+                    </div>
+                  )) : <p className="text-center py-5 text-muted">Loading buildings...</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Room Request */}
+            {selectedBuilding && (
+              <div className="card shadow-sm">
+                <div className="card-header d-flex justify-content-between">
+                  <h5>Request Room in {selectedBuilding.name}</h5>
+                  <button className="btn btn-sm btn-outline-secondary" 
+                    onClick={() => { setSelectedBuilding(null); setSelectedRoom(null); }}>
+                    Close
                   </button>
                 </div>
-              ) : (
-                <p className="text-muted">No room allocated yet.</p>
-              )}
-            </div>
-
-            <div className="card shadow-sm p-4 mb-4">
-              <div className="d-flex align-items-center gap-2 mb-3">
-                <CreditCard className="text-success" size={24} />
-                <h6 className="fw-bold mb-0">Fee Status</h6>
-              </div>
-              {fees.length > 0 ? fees.map(f => (
-                <div key={f.id} className="d-flex justify-content-between py-2 border-bottom">
-                  <span>Semester {f.semester}</span>
-                  <span className={`badge ${f.status === 'paid' ? 'bg-success' : 'bg-warning'}`}>
-                    {f.status.toUpperCase()} - ₹{f.amount}
-                  </span>
-                </div>
-              )) : <p className="text-muted">No fee records found.</p>}
-            </div>
-
-            {showChangeForm && (
-              <div className="card shadow-sm p-4 mb-4 border-primary">
-                <h6 className="fw-bold mb-3">Request Room Change</h6>
-                <div className="row g-3">
-                  <div className="col-md-6">
-                    <label>Select Building</label>
-                    <select className="form-select" value={selectedBuilding} onChange={(e) => setSelectedBuilding(e.target.value)}>
-                      <option value="">Choose Building</option>
-                      {buildings.map(b => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
+                <div className="card-body">
+                  <div className="row g-3">
+                    {Array.from({ length: 8 }, (_, i) => (
+                      <div className="col-md-3" key={i}>
+                        <div 
+                          className={`card text-center p-3 border ${selectedRoom?.id === i+1 ? 'border-success bg-success-subtle' : ''}`}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setSelectedRoom({ id: i+1, roomNumber: `${selectedBuilding.blockId}-${101+i}` })}
+                        >
+                          <h6>Room {selectedBuilding.blockId}-{101+i}</h6>
+                          <small className="text-success">Available</small>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="col-md-6">
-                    <label>Select Room</label>
-                    <select className="form-select" value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)}>
-                      <option value="">Choose Room</option>
-                      {availableRooms.map(r => (
-                        <option key={r.id} value={r.id}>Room {r.roomNumber}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="mt-3 d-flex gap-2">
-                  <button className="btn btn-primary flex-grow-1" onClick={requestRoomChange}>Submit Request</button>
-                  <button className="btn btn-secondary" onClick={() => setShowChangeForm(false)}>Cancel</button>
+
+                  {selectedRoom && (
+                    <div className="mt-4 p-4 border-top">
+                      <h6>Request for Room {selectedRoom.roomNumber}</h6>
+                      <textarea 
+                        className="form-control mb-3" 
+                        rows="3"
+                        placeholder="Message to Warden (optional)"
+                        value={requestMessage}
+                        onChange={(e) => setRequestMessage(e.target.value)}
+                      />
+                      <button 
+                        className="btn btn-primary w-100" 
+                        onClick={handleRequestSubmit}
+                        disabled={loading}
+                      >
+                        <Send size={18} className="me-2" />
+                        {loading ? 'Sending...' : 'Submit Request'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            <div className="card shadow-sm p-4">
-              <div className="d-flex align-items-center gap-2 mb-3">
-                <Building2 className="text-info" size={24} />
-                <h6 className="fw-bold mb-0">Hostel Buildings</h6>
+            {/* My Requests */}
+            {requests.length > 0 && (
+              <div className="card shadow-sm mt-4">
+                <div className="card-header">
+                  <h5><Clock size={20} className="me-2" /> My Requests</h5>
+                </div>
+                <div className="card-body">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Building</th>
+                        <th>Room</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requests.map(r => (
+                        <tr key={r.id}>
+                          <td>{r.Building?.name || '—'}</td>
+                          <td>{r.Room?.roomNumber || '—'}</td>
+                          <td>
+                            <span className={`badge ${r.status === 'approved' ? 'bg-success' : 'bg-warning'}`}>
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="row g-3">
-                {buildings.map(b => (
-                  <div key={b.id} className="col-md-6">
-                    <div className="card border h-100">
-                      <div className="card-body">
-                        <h6 className="fw-bold">{b.name}</h6>
-                        <p className="small text-muted">Block {b.blockId} • {b.floors} Floors</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Fee Modal */}
+      {showFeeModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Fee Structure</h5>
+                <button className="btn btn-close" onClick={() => setShowFeeModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {fees.length > 0 ? (
+                  <table className="table table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Semester</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fees.map(fee => (
+                        <tr key={fee.id}>
+                          <td>{fee.semester}</td>
+                          <td>₹{fee.amount}</td>
+                          <td>
+                            <span className={`badge ${fee.status === 'paid' ? 'bg-success' : 'bg-warning'}`}>
+                              {fee.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-center py-5 text-muted">No fee records available.</p>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowFeeModal(false)}>Close</button>
               </div>
             </div>
           </div>
         </div>
-      </main>
+      )}
+
+      {message.text && (
+        <div className={`alert alert-${message.type} position-fixed bottom-0 start-50 translate-middle-x mb-4 shadow`}>
+          {message.text}
+        </div>
+      )}
     </div>
   );
 }
